@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Check Firewatch Video Cycle</title>
+</head>
+<body>
+    <h1>Video Cycle Inspector</h1>
+    <video id="v" src="/assets/videos/Firewatch-DayNight-Cycle-1440p.mp4" controls muted style="max-width:600px;"></video>
+    <canvas id="c" width="100" height="100" style="display:none;"></canvas>
+    <div id="results"></div>
+
+    <script>
+        const v = document.getElementById('v');
+        const c = document.getElementById('c');
+        const ctx = c.getContext('2d');
+        const res = document.getElementById('results');
+
+        const testPoints = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 59];
+        let pIdx = 0;
+        const sampled = [];
+
+        v.addEventListener('loadedmetadata', () => {
+            console.log('Duration:', v.duration);
+            sampleNext();
+        });
+
+        function sampleNext() {
+            if (pIdx >= testPoints.length) {
+                renderSummary();
+                return;
+            }
+            v.currentTime = testPoints[pIdx];
+        }
+
+        v.addEventListener('seeked', () => {
+            if (pIdx < testPoints.length) {
+                ctx.drawImage(v, 0, 0, 100, 100);
+                const p = ctx.getImageData(50, 20, 1, 1).data; // lấy màu bầu trời
+                sampled.push({ sec: testPoints[pIdx], r: p[0], g: p[1], b: p[2] });
+                pIdx++;
+                sampleNext();
+            }
+        });
+
+        function renderSummary() {
+            let html = '<h3>Samples (R, G, B at sky):</h3><ul>';
+            sampled.forEach(s => {
+                const isDay = (s.r + s.g + s.b > 200);
+                const isSunset = (s.r > 100 && s.r > s.b * 1.5);
+                let phase = 'Night';
+                if (isSunset) phase = 'Sunset/Sunrise';
+                else if (isDay) phase = 'Day';
+                html += `<li><strong>${s.sec}s</strong>: RGB(${s.r}, ${s.g}, ${s.b}) &rarr; <span style="color:rgb(${s.r},${s.g},${s.b});background:#222;padding:2px 6px;">■</span> <b>${phase}</b></li>`;
+            });
+            html += '</ul>';
+            res.innerHTML = html;
+            window.inspectionResults = sampled;
+        }
+    </script>
+</body>
+</html>
